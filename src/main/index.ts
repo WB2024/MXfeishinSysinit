@@ -273,8 +273,12 @@ if (store.get('ignore_ssl')) {
 // a fatal unhandled rejection when it is not found. Disabling the sandbox resolves
 // this. The flag is never applied on systemd-based systems.
 // Security note: acceptable for a trusted single-user local music player.
+// --disable-dev-shm-usage: without the sandbox, Chromium's renderer accesses
+// /dev/shm directly via a process handle mechanism that fails on sysvinit.
+// This flag redirects shared memory to /tmp, which is always accessible.
 if (isSysvinit()) {
     app.commandLine.appendSwitch('no-sandbox');
+    app.commandLine.appendSwitch('disable-dev-shm-usage');
 }
 
 // From https://github.com/tutao/tutanota/commit/92c6ed27625fcf367f0fbcc755d83d7ff8fde94b

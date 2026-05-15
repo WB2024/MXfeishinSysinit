@@ -144,12 +144,16 @@ const isSysvinit = isLinux() && !existsSync('/run/systemd/private');
 Then add the `no-sandbox` flag **only** on sysvinit, before `app.whenReady()`:
 
 ```typescript
-if (isSysvinit) {
+if (isSysvinit()) {
     // On sysvinit (no systemd-logind), Chromium's sandbox probes login1 via D-Bus
     // and throws a fatal error. Disabling the sandbox resolves this.
+    // --disable-dev-shm-usage: without the sandbox, Chromium accesses /dev/shm via
+    // a process handle mechanism that fails on sysvinit (errno ESRCH). Redirects
+    // shared memory to /tmp. Discovered during testing on MX Linux 25.1.
     // Security note: acceptable for a trusted single-user local music player.
-    // This flag is NOT applied on systemd-based systems.
+    // Neither flag is applied on systemd-based systems.
     app.commandLine.appendSwitch('no-sandbox');
+    app.commandLine.appendSwitch('disable-dev-shm-usage');
 }
 ```
 
