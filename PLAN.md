@@ -3,7 +3,7 @@
 **Branch:** `sysvinit-compat` (to be created from `development`)  
 **Base:** Upstream `jeffvli/feishin` v1.11.0 — zero changes committed yet  
 **Goal:** Make Feishin launch and play audio on MX Linux 25.1 sysvinit without breaking systemd-based distros
-
+.
 ---
 
 ## Part 1 — Codebase Reality vs. Spec
