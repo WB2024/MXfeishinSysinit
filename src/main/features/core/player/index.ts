@@ -24,7 +24,17 @@ declare module 'node-mpv';
 
 let mpvInstance: MpvAPI | null = null;
 let currentPlayerData: null | PlayerData = null;
-const socketPath = isWindows() ? `\\\\.\\pipe\\mpvserver-${pid}` : `/tmp/node-mpv-${pid}.sock`;
+
+// [sysvinit-compat] Use XDG_RUNTIME_DIR for the IPC socket when available.
+// XDG_RUNTIME_DIR (/run/user/1000) is a tmpfs the OS cleans on logout, which
+// prevents stale socket files accumulating across sessions. Falls back to /tmp
+// with a PID suffix (original behaviour) when XDG_RUNTIME_DIR is not set.
+const xdgRuntimeDir = process.env.XDG_RUNTIME_DIR;
+const socketPath = isWindows()
+    ? `\\\\.\\pipe\\mpvserver-${pid}`
+    : xdgRuntimeDir
+      ? `${xdgRuntimeDir}/feishin-mpv-${pid}.sock`
+      : `/tmp/node-mpv-${pid}.sock`;
 
 const NodeMpvErrorCode = {
     0: 'Unable to load file or stream',

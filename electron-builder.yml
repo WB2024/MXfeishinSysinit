@@ -62,6 +62,17 @@ linux:
     icon: assets/icons/icon.png
     artifactName: ${productName}-${os}-${arch}.${ext}
 
+# [sysvinit-compat] Runtime dependencies for Debian/MX Linux native install.
+# libmpv2 is the runtime shared library (libmpv-dev is headers-only and must NOT
+# be listed here). pipewire and dbus are present on MX Linux but declared
+# explicitly so the package manager can verify them on minimal installs.
+deb:
+    depends:
+        - libmpv2
+        - pipewire
+        - dbus
+    packageCategory: sound
+
 toolsets:
     appimage: '1.0.2'
 

@@ -45,6 +45,65 @@ Rewrite of [Sonixd](https://github.com/jeffvli/sonixd).
 
 <a href="./media/preview_full_screen_player.png"><img src="./media/preview_full_screen_player.png" width="49.5%"/></a> <a href="./media/preview_album_artist_detail.png"><img src="./media/preview_album_artist_detail.png" width="49.5%"/></a> <a href="./media/preview_album_detail.png"><img src="./media/preview_album_detail.png" width="49.5%"/></a> <a href="./media/preview_smart_playlist.png"><img src="./media/preview_smart_playlist.png" width="49.5%"/></a>
 
+## MX Linux / Sysvinit Compatibility
+
+This fork includes patches for running Feishin on sysvinit-based distributions
+(MX Linux, Devuan, Artix sysvinit, etc.) without systemd.
+
+### What Was Fixed
+
+- **D-Bus crash on launch** — Chromium's sandbox probes `org.freedesktop.login1` (systemd-logind)
+  at startup. On sysvinit this service doesn't exist, causing a fatal unhandled rejection.
+  Fixed by applying `--no-sandbox` and `--disable-dev-shm-usage` conditionally when
+  systemd is not detected (checked via absence of `/run/systemd/private`).
+- **Server password not persisting** — The default `gnome-libsecret` password store requires
+  `gnome-keyring`, which is not running on Xfce/sysvinit. Fixed by falling back to the
+  `basic` password store on sysvinit systems, allowing credentials to be saved between sessions.
+- **MPV IPC socket location** — MPV's IPC socket now uses `XDG_RUNTIME_DIR` (`/run/user/1000`)
+  when available, which is automatically cleaned up on logout. Falls back to `/tmp` if unset.
+- **MPRIS non-fatal init** — MPRIS D-Bus registration is now wrapped so that failure
+  (e.g. if the session bus is unavailable) is a logged warning rather than a crash.
+
+> **Note on `--no-sandbox`:** This is a known security tradeoff. It is appropriate for a
+> trusted single-user local music player and is never applied on systemd-based systems.
+
+### Native Install (Recommended for sysvinit)
+
+Download the `.deb` or `.AppImage` from Releases. The native build avoids Flatpak sandbox
+restrictions entirely and is the recommended path for MX Linux / sysvinit users.
+
+```sh
+# Install the .deb
+sudo dpkg -i Feishin-linux-x64.deb
+
+# Or make the AppImage executable and run it
+chmod +x Feishin-linux-x64.AppImage
+./Feishin-linux-x64.AppImage
+```
+
+### Flatpak Install (sysvinit users)
+
+If you prefer Flatpak, apply these overrides after installation to grant the necessary access:
+
+```bash
+sudo flatpak override org.jeffvli.feishin --socket=system-bus
+sudo flatpak override org.jeffvli.feishin --socket=session-bus
+sudo flatpak override org.jeffvli.feishin --filesystem=host
+```
+
+### MPV Configuration
+
+In Feishin **Settings → Playback**, set the MPV executable path to `/usr/bin/mpv`.
+
+To find your PipeWire audio device name, run:
+```bash
+mpv --audio-device=help
+```
+Then set the audio device in Feishin Settings → Playback to match your sink
+(e.g. `pipewire/alsa_output.usb-FiiO_FiiO_R7_3fa90f5-00.analog-stereo`).
+
+---
+
 ## Getting Started
 
 ### Desktop (recommended)
