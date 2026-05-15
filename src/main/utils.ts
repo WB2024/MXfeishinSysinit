@@ -1,3 +1,4 @@
+import { existsSync } from 'fs';
 import log from 'electron-log/main';
 import path from 'path';
 import process from 'process';
@@ -32,6 +33,16 @@ export const isWindows = () => {
 
 export const isLinux = () => {
     return process.platform === 'linux';
+};
+
+/**
+ * Returns true if the current Linux system uses sysvinit (i.e. no systemd).
+ * Detection: /run/systemd/private is a directory created exclusively by systemd
+ * during boot. Its absence is a reliable indicator that systemd is not the init.
+ * Always returns false on non-Linux platforms.
+ */
+export const isSysvinit = (): boolean => {
+    return isLinux() && !existsSync('/run/systemd/private');
 };
 
 export const hotkeyToElectronAccelerator = (hotkey: string) => {

@@ -38,6 +38,7 @@ import {
     hotkeyToElectronAccelerator,
     isLinux,
     isMacOS,
+    isSysvinit,
     isWindows,
 } from './utils';
 import './features';
@@ -267,9 +268,25 @@ if (store.get('ignore_ssl')) {
     app.commandLine.appendSwitch('ignore-certificate-errors');
 }
 
+// [sysvinit-compat] On sysvinit systems (no systemd-logind), Chromium's sandbox
+// probes org.freedesktop.login1 via the D-Bus system bus during startup and throws
+// a fatal unhandled rejection when it is not found. Disabling the sandbox resolves
+// this. The flag is never applied on systemd-based systems.
+// Security note: acceptable for a trusted single-user local music player.
+if (isSysvinit()) {
+    app.commandLine.appendSwitch('no-sandbox');
+}
+
 // From https://github.com/tutao/tutanota/commit/92c6ed27625fcf367f0fbcc755d83d7ff8fde94b
 if (isLinux() && !process.argv.some((a) => a.startsWith('--password-store='))) {
-    const passwordStore = store.get('password_store', 'gnome-libsecret') as string;
+    // [sysvinit-compat] On sysvinit systems, gnome-keyring is typically not running
+    // (Xfce/MX Linux ship without it), so gnome-libsecret is unavailable and
+    // safeStorage.isEncryptionAvailable() returns false — meaning server passwords
+    // cannot be persisted between sessions. Falling back to 'basic' allows Electron
+    // to use its own credential storage without requiring a keyring daemon.
+    // On systemd systems, gnome-libsecret remains the default.
+    const defaultPasswordStore = isSysvinit() ? 'basic' : 'gnome-libsecret';
+    const passwordStore = store.get('password_store', defaultPasswordStore) as string;
     app.commandLine.appendSwitch('password-store', passwordStore);
 }
 

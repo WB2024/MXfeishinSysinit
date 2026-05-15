@@ -71,9 +71,9 @@ const socketPath = isWindows()
     : `/tmp/node-mpv-${pid}.sock`;
 ```
 
-This works but is not XDG-compliant. On a system where `/tmp` is a tmpfs cleared at boot this is fine, but `XDG_RUNTIME_DIR` (`/run/user/1000`) is the correct location for per-session IPC sockets per the XDG Base Directory spec. Using it also avoids stale socket files accumulating in `/tmp` across reboots.
+This works, and `/tmp` on MX Linux is functional. The real motivation for moving to `XDG_RUNTIME_DIR` is lifecycle management: `XDG_RUNTIME_DIR` (`/run/user/1000`) is a tmpfs directory that the OS **automatically cleans on logout**, whereas `/tmp` on many systems (including Debian-based distros) persists across reboots. This means stale `.sock` files from a previous Feishin session can accumulate in `/tmp`. With a PID suffix they are harmless but messy. Using `XDG_RUNTIME_DIR` means the OS handles cleanup without Feishin needing to do anything. This is not a sysvinit-specific concern — it is the correct practice on any Linux desktop.
 
-The fix is a one-line change with a fallback: `XDG_RUNTIME_DIR ?? /tmp`.
+The fix is a one-line change with a `/tmp` fallback for environments where `XDG_RUNTIME_DIR` is unset.
 
 ---
 
@@ -344,6 +344,12 @@ Changes will be made in this exact order, allowing a test after each step.
 Step 1:  src/main/utils.ts          → isSysvinit() helper
 Step 2:  src/main/index.ts          → no-sandbox + password-store fix
          TEST: pnpm dev — should launch with no fatal D-Bus errors
+         TEST: In DevTools console (Ctrl+Shift+I → Console):
+               require('electron').safeStorage.isEncryptionAvailable()
+               → Must return true. If false, basic store is not working
+                 and server credentials will not persist between sessions.
+         TEST: Enter Navidrome credentials → quit → relaunch → credentials
+               should be retained without re-entry.
 Step 3:  player/index.ts            → XDG_RUNTIME_DIR socket path
          TEST: pnpm dev → select a track → MPV playback (not web audio)
 Step 4:  linux/mpris.ts             → non-fatal MPRIS init
@@ -382,4 +388,4 @@ These are out of scope per the spec but documented for completeness:
 
 ---
 
-*Plan version: 1.0 — ready for review before any code is written.*
+*Plan version: 1.1 — revised per review feedback: MPV socket rationale clarified; safeStorage verification added to Step 2 test gate.*
