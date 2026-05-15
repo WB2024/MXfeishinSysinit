@@ -1,285 +1,257 @@
 <img src="assets/icons/icon.png" alt="logo" title="feishin" align="right" height="60px" width="60px" />
 
-# Feishin
+# Feishin — Sysvinit Edition
 
-  <p align="center">
-    <a href="https://github.com/jeffvli/feishin/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/jeffvli/feishin?style=flat-square&color=brightgreen"
-      alt="License">
-    </a>
-      <a href="https://github.com/jeffvli/feishin/releases">
-      <img src="https://img.shields.io/github/v/release/jeffvli/feishin?style=flat-square&color=blue"
-      alt="Release">
-    </a>
-    <a href="https://github.com/jeffvli/feishin/releases">
-      <img src="https://img.shields.io/github/downloads/jeffvli/feishin/total?style=flat-square&color=orange"
-      alt="Downloads">
-    </a>
-  </p>
-  <p align="center">
-    <a href="https://discord.gg/FVKpcMDy5f">
-      <img src="https://img.shields.io/discord/922656312888811530?color=black&label=discord&logo=discord&logoColor=white"
-      alt="Discord">
-    </a>
-    <a href="https://matrix.to/#/#sonixd:matrix.org">
-      <img src="https://img.shields.io/matrix/sonixd:matrix.org?color=black&label=matrix&logo=matrix&logoColor=white"
-      alt="Matrix">
-    </a>
-  </p>
+<p align="center">
+  <strong>A fork of <a href="https://github.com/jeffvli/feishin">jeffvli/feishin</a> patched to run on systemd-free Linux distributions.</strong><br>
+  Tested on <strong>MX Linux 25.1</strong> with sysvinit, Xfce4, PipeWire, and MPV.
+</p>
+
+<p align="center">
+  <a href="https://github.com/WB2024/MXfeishinSysinit/blob/sysvinit-compat/LICENSE">
+    <img src="https://img.shields.io/github/license/jeffvli/feishin?style=flat-square&color=brightgreen" alt="License">
+  </a>
+  <a href="https://github.com/WB2024/MXfeishinSysinit/releases/tag/v1.11.0-sysvinit-1">
+    <img src="https://img.shields.io/badge/release-v1.11.0--sysvinit--1-blue?style=flat-square" alt="Release">
+  </a>
+  <a href="https://github.com/WB2024/MXfeishinSysinit/releases">
+    <img src="https://img.shields.io/github/downloads/WB2024/MXfeishinSysinit/total?style=flat-square&color=orange" alt="Downloads">
+  </a>
+  <a href="https://github.com/jeffvli/feishin">
+    <img src="https://img.shields.io/badge/upstream-jeffvli%2Ffeishin-grey?style=flat-square&logo=github" alt="Upstream">
+  </a>
+</p>
 
 ---
 
-Rewrite of [Sonixd](https://github.com/jeffvli/sonixd).
+> **This is a fork.** All credit for the original application goes to
+> [jeffvli](https://github.com/jeffvli) and the Feishin contributors.
+> This fork exists solely to patch compatibility issues on sysvinit-based systems.
+> For systemd-based distros (Ubuntu, Fedora, Arch, etc.) use the
+> [official release](https://github.com/jeffvli/feishin/releases) instead.
+
+---
+
+## Why This Fork Exists
+
+Upstream Feishin crashes on sysvinit systems (MX Linux, Devuan, Artix-sysvinit, Void Linux, etc.)
+because Chromium's startup sequence expects systemd services (`systemd-logind`, `gnome-keyring`)
+that simply don't exist without systemd. This fork applies targeted, minimal patches to fix those
+crashes while leaving the behaviour on systemd systems completely unchanged.
+
+**Supported distros (tested or expected to work):**
+
+| Distro | Init | Status |
+|--------|------|--------|
+| MX Linux 25.1 Infinity | sysvinit | ✅ Tested |
+| Devuan Daedalus / Excalibur | sysvinit / OpenRC | ✅ Expected |
+| Artix Linux | sysvinit / OpenRC / runit | ✅ Expected |
+| Void Linux | runit | ✅ Expected |
+| antiX Linux | sysvinit | ✅ Expected |
+
+---
+
+## What's Been Changed
+
+All patches are conditional — they activate only when `/run/systemd/private` is absent
+(which is exclusively created by systemd). On a standard systemd system this fork behaves
+identically to upstream.
+
+| Problem | Root Cause | Fix |
+|---------|-----------|-----|
+| **Crash on launch** | Chromium sandbox probes `org.freedesktop.login1` (systemd-logind) | `--no-sandbox` + `--disable-dev-shm-usage` applied on sysvinit only |
+| **Passwords not saved between sessions** | Default store is `gnome-libsecret`, requires `gnome-keyring` (not running on Xfce/sysvinit) | Falls back to `basic` password store on sysvinit |
+| **MPV socket left in `/tmp`** | Socket was created as `/tmp/node-mpv-<pid>.sock`, not cleaned on crash | Socket now placed in `XDG_RUNTIME_DIR` (auto-cleaned on logout); falls back to `/tmp` |
+| **MPRIS crash when session bus missing** | `mpris-service` throws if D-Bus session bus is unavailable | Wrapped in try/catch — MPRIS unavailable is a warning, not a fatal error |
+| **`.deb` missing runtime dependencies** | Upstream `.deb` had no `Depends:` field | Added `Depends: libmpv2, pipewire, dbus` to electron-builder config |
+
+> **Security note on `--no-sandbox`:** Disabling the Chromium sandbox is a known tradeoff.
+> It is appropriate for a trusted, single-user local music player. It is **never** applied
+> on systemd-based systems where this is not needed.
+
+---
+
+## Install
+
+Download from the [Releases page](https://github.com/WB2024/MXfeishinSysinit/releases/tag/v1.11.0-sysvinit-1).
+
+### .deb (recommended for MX Linux / Debian-based)
+
+```bash
+sudo dpkg -i Feishin-linux-amd64.deb
+sudo apt-get install -f   # resolves any missing deps automatically
+feishin                   # launch from terminal, or find it in your app menu
+```
+
+### AppImage (portable, no install required)
+
+```bash
+chmod +x Feishin-linux-x86_64.AppImage
+./Feishin-linux-x86_64.AppImage
+```
+
+### tar.xz (manual extract)
+
+```bash
+tar -xf Feishin-linux-x64.tar.xz
+./Feishin-linux-x64/feishin
+```
+
+---
+
+## First-Time Setup
+
+### 1 — MPV
+
+When the app first launches it will ask for your MPV binary path. Enter `/usr/bin/mpv`
+(verify with `which mpv`) and restart the app.
+
+**Optional — lock MPV to a specific audio device (e.g. a USB DAC):**
+
+Find your device name:
+```bash
+mpv --audio-device=help
+```
+Then open **Settings → Playback → MPV Options** and add:
+```
+--audio-device=pipewire/alsa_output.usb-YOUR_DEVICE_NAME.analog-stereo
+```
+
+Alternatively, set it globally in `~/.config/mpv/mpv.conf`:
+```
+audio-device=pipewire/alsa_output.usb-YOUR_DEVICE_NAME.analog-stereo
+```
+
+### 2 — Add a music server
+
+Click the hamburger menu → **Manage servers** → **Add server**.  
+Enter the full URL to your server (e.g. `http://192.168.1.10:4533` for Navidrome).
+
+Supported servers: **Navidrome**, **Jellyfin**, **Airsonic-Advanced**, **Gonic**, **Funkwhale**, **Ampache**, and any [OpenSubsonic](https://opensubsonic.netlify.app/)-compatible API.
+
+### 3 — Passwords (sysvinit note)
+
+On sysvinit systems the `basic` password store is used automatically — no extra setup needed.
+Passwords are stored in the Feishin config directory (`~/.config/Feishin/`).
+
+---
 
 ## Features
 
-- [x] MPV player backend
+Everything from upstream Feishin, plus the sysvinit fixes above:
+
+- [x] MPV player backend (hardware-accelerated, gapless playback)
 - [x] Web player backend
-- [x] Modern UI
+- [x] Modern UI built with React + Mantine
 - [x] Scrobble playback to your server
 - [x] Smart playlist editor (Navidrome)
 - [x] Synchronized and unsynchronized lyrics support
-- [ ] [Request a feature](https://github.com/jeffvli/feishin/issues) or [view taskboard](https://github.com/users/jeffvli/projects/5/views/1)
+- [x] Discord Rich Presence
+- [x] MPRIS 2.0 media key integration (on systems with D-Bus session bus)
+- [x] Works on sysvinit — no systemd required
+
+---
 
 ## Screenshots
 
 <a href="./media/preview_full_screen_player.png"><img src="./media/preview_full_screen_player.png" width="49.5%"/></a> <a href="./media/preview_album_artist_detail.png"><img src="./media/preview_album_artist_detail.png" width="49.5%"/></a> <a href="./media/preview_album_detail.png"><img src="./media/preview_album_detail.png" width="49.5%"/></a> <a href="./media/preview_smart_playlist.png"><img src="./media/preview_smart_playlist.png" width="49.5%"/></a>
 
-## MX Linux / Sysvinit Compatibility
+---
 
-This fork includes patches for running Feishin on sysvinit-based distributions
-(MX Linux, Devuan, Artix sysvinit, etc.) without systemd.
+## Building from Source
 
-### What Was Fixed
-
-- **D-Bus crash on launch** — Chromium's sandbox probes `org.freedesktop.login1` (systemd-logind)
-  at startup. On sysvinit this service doesn't exist, causing a fatal unhandled rejection.
-  Fixed by applying `--no-sandbox` and `--disable-dev-shm-usage` conditionally when
-  systemd is not detected (checked via absence of `/run/systemd/private`).
-- **Server password not persisting** — The default `gnome-libsecret` password store requires
-  `gnome-keyring`, which is not running on Xfce/sysvinit. Fixed by falling back to the
-  `basic` password store on sysvinit systems, allowing credentials to be saved between sessions.
-- **MPV IPC socket location** — MPV's IPC socket now uses `XDG_RUNTIME_DIR` (`/run/user/1000`)
-  when available, which is automatically cleaned up on logout. Falls back to `/tmp` if unset.
-- **MPRIS non-fatal init** — MPRIS D-Bus registration is now wrapped so that failure
-  (e.g. if the session bus is unavailable) is a logged warning rather than a crash.
-
-> **Note on `--no-sandbox`:** This is a known security tradeoff. It is appropriate for a
-> trusted single-user local music player and is never applied on systemd-based systems.
-
-### Native Install (Recommended for sysvinit)
-
-Download the `.deb` or `.AppImage` from Releases. The native build avoids Flatpak sandbox
-restrictions entirely and is the recommended path for MX Linux / sysvinit users.
-
-```sh
-# Install the .deb
-sudo dpkg -i Feishin-linux-x64.deb
-
-# Or make the AppImage executable and run it
-chmod +x Feishin-linux-x64.AppImage
-./Feishin-linux-x64.AppImage
-```
-
-### Flatpak Install (sysvinit users)
-
-If you prefer Flatpak, apply these overrides after installation to grant the necessary access:
+Requires Node.js v24+, pnpm v11+.
 
 ```bash
-sudo flatpak override org.jeffvli.feishin --socket=system-bus
-sudo flatpak override org.jeffvli.feishin --socket=session-bus
-sudo flatpak override org.jeffvli.feishin --filesystem=host
+git clone https://github.com/WB2024/MXfeishinSysinit.git
+cd MXfeishinSysinit
+pnpm install
+pnpm approve-builds      # required on first clone (pnpm 11 security policy)
+
+# Development
+pnpm run dev
+
+# Production build + package (outputs to dist/)
+pnpm run build
+./node_modules/.bin/electron-builder --linux
 ```
 
-### MPV Configuration
+Artifacts appear in `dist/`:
+- `Feishin-linux-amd64.deb`
+- `Feishin-linux-x86_64.AppImage`
+- `Feishin-linux-x64.tar.xz`
 
-In Feishin **Settings → Playback**, set the MPV executable path to `/usr/bin/mpv`.
+> **Note:** The first packaging run downloads build tools (~10 MB) to `~/.cache/electron-builder/`.
+> Subsequent runs use the cache and are much faster.
 
-To find your PipeWire audio device name, run:
-```bash
-mpv --audio-device=help
-```
-Then set the audio device in Feishin Settings → Playback to match your sink
-(e.g. `pipewire/alsa_output.usb-FiiO_FiiO_R7_3fa90f5-00.analog-stereo`).
+### Dev commands
+
+- `pnpm run dev` — Start the development server
+- `pnpm run build` — Build main + preload + renderer
+- `pnpm run typecheck` — Type-check the project
+- `pnpm run lint` — Lint the project
 
 ---
 
-## Getting Started
-
-### Desktop (recommended)
-
-Download the [latest desktop client](https://github.com/jeffvli/feishin/releases). The desktop client is the recommended way to use Feishin. It supports both the MPV and web player backends, as well as includes built-in fetching for lyrics.
-
-#### macOS Notes
-
-If you're using a device running macOS 12 (Monterey) or higher, [check here](https://github.com/jeffvli/feishin/issues/104#issuecomment-1553914730) for instructions on how to remove the app from quarantine.
-
-For media keys to work, you will be prompted to allow Feishin to be a Trusted Accessibility Client. After allowing, you will need to restart Feishin for the privacy settings to take effect.
-
-#### Linux Notes
-
-Feishin is available in [Flathub](https://flathub.org/en/apps/org.jeffvli.feishin).
-
-Alternatively, you can install it as an Appimage.
-We provide a small install script to download the latest `.AppImage`, make it executable, and also download the icons required by Desktop Environments.
-Finally, it generates a `.desktop` file to add Feishin to your Application Launcher.
-
-Simply run the installer like this:
-
-```sh
-dir=/your/application/directory
-curl 'https://raw.githubusercontent.com/jeffvli/feishin/refs/heads/development/install-feishin-appimage' | sh -s -- "$dir"
-```
-
-The script also has an option to add launch arguments to run Feishin in native Wayland mode. Note that this is experimental in Electron and therefore not officially supported. If you want to use it, run this instead:
-
-```sh
-dir=/your/application/directory
-curl 'https://raw.githubusercontent.com/jeffvli/feishin/refs/heads/development/install-feishin-appimage' | sh -s -- "$dir" wayland-native
-```
-
-It also provides a simple uninstall routine, removing the downloaded files:
-
-```sh
-dir=/your/application/directory
-curl 'https://raw.githubusercontent.com/jeffvli/feishin/refs/heads/development/install-feishin-appimage' | sh -s -- "$dir" remove
-```
-
-The entry should show up in your Application Launcher immediately. If it does not, simply log out, wait 10 seconds, and log back in. Your Desktop Environment may alternatively provide a way to reload entries.
-
-### Web and Docker
-
-Visit [https://feishin.vercel.app](https://feishin.vercel.app) to use the hosted web version of Feishin. The web client only supports the web player backend.
-
-Feishin is also available as a Docker image. The images are hosted via `ghcr.io` and are available to view [here](https://github.com/jeffvli/feishin/pkgs/container/feishin). You can run the container using the following commands:
-
-```bash
-# Run the latest version
-docker run --name feishin -p 9180:9180 ghcr.io/jeffvli/feishin:latest
-
-# Build the image locally
-docker build -t feishin .
-docker run --name feishin -p 9180:9180 feishin
-```
-
-#### Docker Compose
-
-To install via Docker Compose, use the following snippet. This also works on Portainer.
-
-```yaml
-services:
-    feishin:
-        container_name: feishin
-        image: 'ghcr.io/jeffvli/feishin:latest'
-        restart: unless-stopped
-        environment:
-            - SERVER_NAME=jellyfin # pre-defined server name
-            - SERVER_LOCK=true # When true AND name/type/url are set, only username/password can be toggled
-            - SERVER_TYPE=jellyfin # the allowed types are: jellyfin, navidrome, subsonic. These values are case insensitive
-            - SERVER_URL= # http://address:port or https://address:port
-            - REMOTE_URL= # http://address or https://address
-            - LEGACY_AUTHENTICATION=false # When SERVER_LOCK is true, sets the legacy (plaintext) authentication flag for Subsonic/OpenSubsonic servers
-            - ANALYTICS_DISABLED=true # Set to true to disable Umami analytics tracking
-        ports:
-            - 9180:9180
-            # Alternatively, to restrict to only localhost, - 127.0.0.1:9180:8190
-```
-
-### Configuration
-
-1. Upon startup you will be greeted with a prompt to select the path to your MPV binary. If you do not have MPV installed, you can download it [here](https://mpv.io/installation/) or install it using any package manager supported by your OS. After inputting the path, restart the app.
-
-2. After restarting the app, you will be prompted to select a server. Click the `Open menu` button and select `Manage servers`. Click the `Add server` button in the popup and fill out all applicable details. You will need to enter the full URL to your server, including the protocol and port if applicable (e.g. `https://navidrome.my-server.com` or `http://192.168.0.1:4533`).
-
-- **Navidrome** - For the best experience, select "Save password" when creating the server and configure the `SessionTimeout` setting in your Navidrome config to a larger value (e.g. 72h).
-    - **Linux users** - The default password store uses `libsecret`. `kwallet4/5/6` are also supported, but must be explicitly set in Settings > Window > Passwords/secret store.
-
-3. _Optional_ - If you want to host Feishin on a subpath (not `/`), then pass in the following environment variable: `PUBLIC_PATH=PATH`. For example, to host on `/feishin`, pass in `PUBLIC_PATH=/feishin`.
-
-4. _Optional_ - To hard code the server url, pass the following environment variables: `SERVER_NAME`, `SERVER_TYPE` (one of `jellyfin` or `navidrome` or `subsonic`), `SERVER_URL`. To prevent users from changing these settings, pass `SERVER_LOCK=true`. This can only be set if all three of the previous values are set. When `SERVER_LOCK=true`, you can also set `LEGACY_AUTHENTICATION=true` or `LEGACY_AUTHENTICATION=false` to configure the legacy authentication flag for the server (only applicable for Subsonic/OpenSubsonic servers).
-
-5. _Optional_ - If your server uses a separate public-facing URL than what integrating applications use internally to communicate with your server, such as a separate Navidrome `ShareURL`, set `REMOTE_URL` to said public-facing URL.
-
-6. _Optional_ - To disable Umami analytics tracking in the Docker/web version, set the environment variable `ANALYTICS_DISABLED=true`. When enabled, the analytics script will not be loaded and all tracking will be disabled.
-
-7. _Optional_ - App settings (theme, language, sidebar options, etc.) can be overridden with environment variables on first run. The variables use the `FS_` prefix (e.g. `FS_GENERAL_THEME=defaultDark`, `FS_GENERAL_LANGUAGE=de`). See [the settings environment variable documentation](docs/ENV_SETTINGS.md) for the full list.
-
 ## FAQ
 
-### MPV is either not working or is rapidly switching between pause/play states
+### The app crashes immediately on launch
 
-First thing to do is check that your MPV binary path is correct. Navigate to the settings page and re-set the path and restart the app. If your issue still isn't resolved, try reinstalling MPV. Known working versions include `v0.35.x` and `v0.36.x`. `v0.34.x` is a known broken version.
+You are likely on a sysvinit system running an unpatched build. Use the releases from
+**this fork** rather than the upstream official release.
 
-### What music servers does Feishin support?
+If you are already using this fork and still see a crash, run from a terminal to see the
+error output:
+```bash
+feishin --enable-logging 2>&1 | head -60
+```
 
-Feishin supports any music server that implements a [Navidrome](https://www.navidrome.org/), [Jellyfin](https://jellyfin.org/), or [OpenSubsonic compatible](https://opensubsonic.netlify.app/) API.
+### MPV is not working or rapidly toggling pause/play
+
+Check that the MPV path in **Settings → Playback** is correct (`/usr/bin/mpv`).
+If the issue persists, reinstall MPV. Known good versions: `v0.35.x`, `v0.36.x`, `v0.40.x`.
+`v0.34.x` is a known broken version.
+
+### Passwords are not saved between sessions
+
+On sysvinit this fork automatically uses the `basic` store. If you installed the upstream
+version first, there may be a stale `password_store` value in your config. Open
+**Settings → Window → Passwords/secret store** and set it to **Basic**.
+
+### I see "The SUID sandbox helper binary was found, but is not configured correctly"
+
+This happens when unprivileged user namespaces are disabled
+(`sysctl kernel.unprivileged_userns_clone` returns 0).  
+This fork already applies `--no-sandbox` on sysvinit, so this error should not appear.
+If it does, ensure you are running the fork's binary and not the upstream one.
+
+### Media keys / MPRIS not working
+
+On sysvinit systems without a D-Bus session bus, MPRIS is silently disabled. This is
+expected and non-fatal. If you have `dbus-daemon` running (`ps aux | grep dbus`) but
+MPRIS still doesn't work, check that your desktop environment registers a session bus
+(most Xfce4 setups on MX Linux do via `/etc/X11/Xsession.d/`).
+
+### What music servers are supported?
 
 - [Navidrome](https://github.com/navidrome/navidrome)
 - [Jellyfin](https://github.com/jellyfin/jellyfin)
-- [OpenSubsonic](https://opensubsonic.netlify.app/) compatible servers, such as...
-    - [Airsonic-Advanced](https://github.com/airsonic-advanced/airsonic-advanced)
-    - [Ampache](https://ampache.org)
-    - [Astiga](https://asti.ga/)
-    - [Funkwhale](https://www.funkwhale.audio/)
-    - [Gonic](https://github.com/sentriz/gonic)
-    - [LMS](https://github.com/epoupon/lms)
-    - [Nextcloud Music](https://apps.nextcloud.com/apps/music)
-    - [Supysonic](https://github.com/spl0k/supysonic)
-    - [Qm-Music](https://github.com/chenqimiao/qm-music)
-    - More (?)
+- [OpenSubsonic](https://opensubsonic.netlify.app/) compatible servers: Airsonic-Advanced, Ampache, Astiga, Funkwhale, Gonic, LMS, Nextcloud Music, Supysonic, Qm-Music
 
-- [Plex](https://www.plex.tv/media-server-downloads)
-    - [Feishin fork by lux032](https://github.com/lux032/feishin) - Plex is not natively supported. Use the fork by lux032 to use Plex with Feishin.
+---
 
+## Relationship to Upstream
 
-### I have the issue "The SUID sandbox helper binary was found, but is not configured correctly" on Linux
+This fork tracks the `development` branch of [jeffvli/feishin](https://github.com/jeffvli/feishin).
+Changes are minimal and surgical — only what is needed for sysvinit compatibility.
+No features have been added or removed. The goal is to keep rebasing cleanly onto upstream
+as new versions are released.
 
-This happens when you have user (unprivileged) namespaces disabled (`sysctl kernel.unprivileged_userns_clone` returns 0). You can fix this by either enabling unprivileged namespaces, or by making the `chrome-sandbox` Setuid.
+Pull requests and bug reports for **sysvinit-specific issues** are welcome here.
+For general Feishin issues, report them [upstream](https://github.com/jeffvli/feishin/issues).
 
-```bash
-chmod 4755 chrome-sandbox
-sudo chown root:root chrome-sandbox
-```
-
-Ubuntu 24.04 specifically introduced breaking changes that affect how namespaces work. Please see https://discourse.ubuntu.com/t/ubuntu-24-04-lts-noble-numbat-release-notes/39890#:~:text=security%20improvements%20 for possible fixes.
-
-## Development
-
-Built and tested using Node `v23.11.0`.
-
-This project is built off of [electron-vite](https://github.com/alex8088/electron-vite)
-
-- `pnpm run dev` - Start the development server
-- `pnpm run dev:watch` - Start the development server in watch mode (for main / preload HMR)
-- `pnpm run start` - Starts the app in production preview mode
-- `pnpm run build` - Builds the app for desktop
-- `pnpm run build:electron` - Build the electron app (main, preload, and renderer)
-- `pnpm run build:remote` - Build the remote app (remote)
-- `pnpm run build:web` - Build the standalone web app (renderer)
-- `pnpm run package` - Package the project
-- `pnpm run package:dev` - Package the project for development locally
-- `pnpm run package:linux` - Package the project for Linux locally
-- `pnpm run package:mac` - Package the project for Mac locally
-- `pnpm run package:win` - Package the project for Windows locally
-- `pnpm run publish:linux` - Publish the project for Linux
-- `pnpm run publish:linux:beta` - Publish the project for Linux (beta channel)
-- `pnpm run publish:linux-arm64` - Publish the project for Linux ARM64
-- `pnpm run publish:linux-arm64:beta` - Publish the project for Linux ARM64 (beta channel)
-- `pnpm run publish:mac` - Publish the project for Mac
-- `pnpm run publish:mac:beta` - Publish the project for Mac (beta channel)
-- `pnpm run publish:win` - Publish the project for Windows
-- `pnpm run publish:win:beta` - Publish the project for Windows (beta channel)
-- `pnpm run typecheck` - Type check the project
-- `pnpm run typecheck:node` - Type check the project with tsconfig.node.json
-- `pnpm run typecheck:web` - Type check the project with tsconfig.web.json
-- `pnpm run lint` - Lint the project
-- `pnpm run lint:fix` - Lint the project and fix linting errors
-- `pnpm run i18next` - Generate i18n files
-
-## Translation
-
-This project uses [Weblate](https://hosted.weblate.org/projects/feishin/) for translations. If you would like to contribute, please visit the link and submit a translation.
+---
 
 ## License
 
-[GNU General Public License v3.0 ©](https://github.com/jeffvli/feishin/blob/dev/LICENSE)
+[GNU General Public License v3.0](https://github.com/jeffvli/feishin/blob/dev/LICENSE) — same as upstream.
